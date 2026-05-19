@@ -1,0 +1,83 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1778139173841,
+      "tag": "0000_wooden_hemingway",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1778147786098,
+      "tag": "0001_salty_korvac",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778150811112,
+      "tag": "0002_happy_rocket_racer",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1778151000000,
+      "tag": "0003_official_status_mirrors",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1778151001000,
+      "tag": "0004_webhook_delivery_extra",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1778151002000,
+      "tag": "0005_mirror_provider_link",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1778151003000,
+      "tag": "0006_snapshot_description",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1778151004000,
+      "tag": "0007_drop_endpoint_type_add_method",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1778151005000,
+      "tag": "0008_upstream_incidents",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1778151006000,
+      "tag": "0009_logs_and_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1778787663850,
+      "tag": "0010_same_living_tribunal",
+      "breakpoints": true
+    }
+  ]
+}

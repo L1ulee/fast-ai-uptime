@@ -1,0 +1,18 @@
+# <type>(<scope>): <subject>     # ← 50 字以内，祈使句，末尾不加句号
+#
+# <body>                          # ← 72 字换行；解释 why & how
+#
+# <footer>                        # ← BREAKING CHANGE / Closes #n
+#
+# ─── 速查 ───────────────────────────────────────────────────────────
+# type:   feat | fix | perf | refactor | docs | style | test
+#         build | ci | chore | revert
+# scope:  web | worker | db | providers | core | ui | admin | api
+#         infra | docs | deps
+#
+# 示例：
+#   feat(providers): add Anthropic Messages adapter
+#   fix(worker): debounce flapping components
+#   feat(api)!: rename /api/v1/status response field
+#
+# 详见 CONTRIBUTING.md

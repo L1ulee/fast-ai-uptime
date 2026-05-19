@@ -1,0 +1,94 @@
+# ---------- Local-only design / agent state ----------
+DESIGN.md
+.claude/
+AGENTS.md
+.codex/local/
+docs/
+
+# ---------- Node / pnpm ----------
+node_modules/
+.pnp
+.pnp.js
+.pnpm-store/
+.npm/
+
+# ---------- Logs ----------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# ---------- Build output ----------
+dist/
+build/
+out/
+.next/
+.turbo/
+*.tsbuildinfo
+next-env.d.ts
+
+# ---------- Test / coverage ----------
+coverage/
+*.lcov
+.nyc_output/
+playwright-report/
+test-results/
+.playwright-mcp/
+admin_*.png
+public_*.png
+
+# ---------- Env files (NEVER commit) ----------
+.env
+.env.*
+!.env.example
+
+# ---------- Database / local data ----------
+*.db
+*.sqlite
+*.sqlite3
+drizzle/meta/_journal.json.bak
+pgdata/
+postgres-data/
+
+# ---------- Docker ----------
+.docker/
+
+# ---------- IDE / Editor ----------
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+*.swp
+*.swo
+*.swn
+
+# ---------- OS ----------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ---------- Vercel ----------
+.vercel
+
+# ---------- Sentry ----------
+.sentryclirc
+
+# ---------- Misc ----------
+*.pem
+*.tgz
+.cache/
+tmp/
+temp/
+pencil-design/
+timeline-check.png

@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # CI 测试用的固定值（无敏感性）
+  DATABASE_URL: postgres://fau:fau@localhost:5432/fau
+  ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+  SESSION_SECRET: fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210
+  ADMIN_PASSWORD: ci-test-pw
+  NODE_ENV: test
+
+jobs:
+  build:
+    name: build / test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: fau
+          POSTGRES_PASSWORD: fau
+          POSTGRES_DB: fau
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply DB migrations
+        run: pnpm --filter @fau/db db:migrate
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm -r test
+
+      - name: Build
+        run: pnpm build

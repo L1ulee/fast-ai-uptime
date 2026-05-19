@@ -1,0 +1,89 @@
+name: fast-ai-uptime
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fau-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      POSTGRES_DB: ${POSTGRES_DB:-fau}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    # 默认仅在 docker 网络内可达;`debug` profile 才暴露到主机 5433。
+    # docker compose --profile debug up
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # 仅用于本机调试:把 PG 5432 暴露到主机 5433。
+  postgres-debug-port:
+    image: alpine/socat
+    container_name: fau-postgres-debug
+    profiles: ['debug']
+    restart: unless-stopped
+    command: ['TCP-LISTEN:5432,fork,reuseaddr', 'TCP:postgres:5432']
+    ports:
+      - '5433:5432'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # 一次性 init 容器：postgres 健康后跑完 drizzle migrations 即退出。
+  # `docker compose up` 时自动执行；web 会等它成功退出后才启动。
+  # drizzle-kit migrate 是幂等的，重复 up 只会补差量、不会重复执行已应用的迁移。
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: migrate
+    container_name: fau-migrate
+    restart: 'no'
+    environment:
+      DATABASE_URL: 'postgres://${POSTGRES_USER:?POSTGRES_USER required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}@postgres:5432/${POSTGRES_DB:-fau}'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: runner
+    container_name: fau-web
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: 'postgres://${POSTGRES_USER:?POSTGRES_USER required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}@postgres:5432/${POSTGRES_DB:-fau}'
+      # 三个安全相关 secret 必须由 .env / 环境变量提供,缺失会让容器启动失败。
+      # 生成命令: openssl rand -hex 32 (ENCRYPTION_KEY / SESSION_SECRET)
+      ENCRYPTION_KEY: '${ENCRYPTION_KEY:?ENCRYPTION_KEY required - generate with openssl rand -hex 32}'
+      ADMIN_PASSWORD: '${ADMIN_PASSWORD:?ADMIN_PASSWORD required}'
+      SESSION_SECRET: '${SESSION_SECRET:?SESSION_SECRET required - generate with openssl rand -hex 32}'
+      BASE_URL: ${BASE_URL:-http://localhost:3000}
+      NODE_ID: docker
+      POLL_INTERVAL_SECONDS: ${POLL_INTERVAL_SECONDS:-60}
+      CHECK_CONCURRENCY: ${CHECK_CONCURRENCY:-5}
+      OFFICIAL_STATUS_INTERVAL_SECONDS: ${OFFICIAL_STATUS_INTERVAL_SECONDS:-300}
+      HISTORY_RETENTION_DAYS: ${HISTORY_RETENTION_DAYS:-30}
+      # 内嵌 worker（探测调度 / 聚合 / 维护扫描 / Webhook 投递 / 官方状态同步）。
+      # 默认启用；如需测试时关探测避免覆盖 demo seed，运行前设 PROBE_DISABLED=1。
+      PROBE_DISABLED: ${PROBE_DISABLED:-0}
+      # 本地代理场景 opt-in 放行 198.18.0.0/15 等保留段;生产部署留空。
+      SAFE_FETCH_EXTRA_ALLOWED_CIDRS: ${SAFE_FETCH_EXTRA_ALLOWED_CIDRS:-}
+    ports:
+      # 主机端口可通过 WEB_PORT env 改写,默认 3000;遇到占用切到 3001 等。
+      - '${WEB_PORT:-3000}:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      # 等迁移容器成功退出后再启动，避免 web 连到未迁移的空库。
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:
+    name: fau-pgdata
