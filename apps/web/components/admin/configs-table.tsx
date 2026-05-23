@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition, type ReactNode } from 'react';
 import {
   Badge,
   DangerButton,
@@ -275,8 +275,106 @@ function HeadersEditor({
   );
 }
 
-function bodyDefaultFor(modelName: string): string {
-  return `{\n  "model": "${modelName}",\n  "messages": [{ "role": "user", "content": "ping" }],\n  "max_tokens": 1\n}`;
+type BodyTemplateKind = 'chat' | 'image' | 'embeddings';
+
+/**
+ * 默认请求体模板：均使用 {{model}} 占位符，运行时由 probe 替换为该组件绑定的真实模型名。
+ * 这样无论用户切换模型还是手动改 model 字段，模板都不会带过期/错误的模型名。
+ */
+const BODY_TEMPLATES: Record<BodyTemplateKind, string> = {
+  chat: `{\n  "model": "{{model}}",\n  "messages": [{ "role": "user", "content": "ping" }],\n  "max_tokens": 1\n}`,
+  image: `{\n  "model": "{{model}}",\n  "prompt": "a small red apple on a white background",\n  "n": 1,\n  "size": "1024x1024"\n}`,
+  embeddings: `{\n  "model": "{{model}}",\n  "input": "ping"\n}`,
+};
+
+const BODY_TEMPLATE_LABELS: Record<BodyTemplateKind, string> = {
+  chat: 'Chat 对话',
+  image: '图片生成',
+  embeddings: 'Embeddings',
+};
+
+function bodyDefaultFor(template: BodyTemplateKind = 'chat'): string {
+  return BODY_TEMPLATES[template];
+}
+
+/** 请求体编辑器上方的模板按钮组——点击替换请求体为对应骨架。 */
+function BodyTemplatePicker({ onPick }: { onPick: (t: BodyTemplateKind) => void }) {
+  return (
+    <div
+      className="row"
+      style={{ gap: 6, marginBottom: 6, flexWrap: 'wrap', alignItems: 'center' }}
+    >
+      <span className="subtle" style={{ fontSize: 11 }}>
+        填入模板：
+      </span>
+      {(Object.keys(BODY_TEMPLATES) as BodyTemplateKind[]).map((t) => (
+        <button
+          key={t}
+          type="button"
+          className="btn btn-sm btn-ghost"
+          onClick={() => onPick(t)}
+          style={{ height: 24, fontSize: 11.5, padding: '0 8px' }}
+        >
+          {BODY_TEMPLATE_LABELS[t]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * 类 <Field> 容器，标题旁带「启用」开关。
+ * 关闭时该字段不进入 FormData → 服务端按 null 落库 → 探测时不发送。
+ */
+function ToggleField({
+  label,
+  hint,
+  enabled,
+  onToggle,
+  offText,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  enabled: boolean;
+  onToggle: (v: boolean) => void;
+  offText: string;
+  children: ReactNode;
+}) {
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div className="row" style={{ gap: 12, marginBottom: 6, alignItems: 'center' }}>
+        <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--fg-muted)' }}>{label}</span>
+        <label
+          className="row"
+          style={{ gap: 6, fontSize: 11, color: 'var(--fg-muted)', cursor: 'pointer' }}
+        >
+          <input type="checkbox" checked={enabled} onChange={(e) => onToggle(e.target.checked)} />
+          <span>{enabled ? '已启用' : '已关闭'}</span>
+        </label>
+      </div>
+      {enabled ? (
+        children
+      ) : (
+        <div
+          className="subtle"
+          style={{
+            fontSize: 11.5,
+            padding: '8px 10px',
+            border: '1px dashed var(--border)',
+            borderRadius: 4,
+          }}
+        >
+          {offText}
+        </div>
+      )}
+      {hint && enabled && (
+        <div className="subtle" style={{ fontSize: 11, marginTop: 4 }}>
+          {hint}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function defaultHeadersForCreate(): HeaderPairUi[] {
@@ -744,18 +842,20 @@ function EditConfigForm({
   editConfig: (formData: FormData) => Promise<void>;
 }) {
   const [method, setMethod] = useState<HttpMethod>(editing.method);
+  const [useCustomHeaders, setUseCustomHeaders] = useState<boolean>(editing.headers.length > 0);
   const [headers, setHeaders] = useState<HeaderPairUi[]>(
     editing.headers.length > 0 ? editing.headers : defaultHeadersForCreate(),
   );
-  const [body, setBody] = useState<string>(
-    editing.requestBody ?? bodyDefaultFor(editing.modelName),
-  );
+  const [useCustomBody, setUseCustomBody] = useState<boolean>(editing.requestBody != null);
+  const [body, setBody] = useState<string>(editing.requestBody ?? bodyDefaultFor('chat'));
 
   useEffect(() => {
     setMethod(editing.method);
+    setUseCustomHeaders(editing.headers.length > 0);
     setHeaders(editing.headers.length > 0 ? editing.headers : defaultHeadersForCreate());
-    setBody(editing.requestBody ?? bodyDefaultFor(editing.modelName));
-  }, [editing.id, editing.method, editing.headers, editing.requestBody, editing.modelName]);
+    setUseCustomBody(editing.requestBody != null);
+    setBody(editing.requestBody ?? bodyDefaultFor('chat'));
+  }, [editing.id, editing.method, editing.headers, editing.requestBody]);
 
   return (
     <>
@@ -847,11 +947,24 @@ function EditConfigForm({
             ))}
           </select>
         </Field>
-        <Field label="请求头" hint="支持 {{API_KEY}} {{model}} {{timestamp}} 模板">
+        <ToggleField
+          label="请求头"
+          hint="支持 {{API_KEY}} {{model}} {{timestamp}} 模板"
+          enabled={useCustomHeaders}
+          onToggle={setUseCustomHeaders}
+          offText="关闭——探测时不会发送任何自定义请求头。"
+        >
           <HeadersEditor value={headers} onChange={setHeaders} />
-        </Field>
+        </ToggleField>
         {method !== 'GET' && method !== 'HEAD' && (
-          <Field label="请求体" hint="JSON 或原文本；同样支持模板">
+          <ToggleField
+            label="请求体"
+            hint="JSON 或原文本；支持 {{API_KEY}} {{model}} {{timestamp}} 模板"
+            enabled={useCustomBody}
+            onToggle={setUseCustomBody}
+            offText="关闭——探测时不发送请求体。"
+          >
+            <BodyTemplatePicker onPick={(t) => setBody(bodyDefaultFor(t))} />
             <textarea
               className="textarea mono"
               name="request_body"
@@ -859,7 +972,7 @@ function EditConfigForm({
               value={body}
               onChange={(e) => setBody(e.target.value)}
             />
-          </Field>
+          </ToggleField>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <Field label="探测间隔（秒）">
@@ -872,13 +985,13 @@ function EditConfigForm({
               className="tabular"
             />
           </Field>
-          <Field label="超时（毫秒）">
+          <Field label="超时（毫秒）" hint="1000-600000（最长 10 分钟，适合图片等慢端点）">
             <TextInput
               name="timeout_ms"
               type="number"
               defaultValue={editing.timeoutMs}
               min={1000}
-              max={120000}
+              max={600000}
               className="tabular"
             />
           </Field>
@@ -932,8 +1045,11 @@ function CreateConfigForm({
   createConfig: (formData: FormData) => Promise<void>;
 }) {
   const [method, setMethod] = useState<HttpMethod>('POST');
+  const [useCustomHeaders, setUseCustomHeaders] = useState<boolean>(true);
   const [headers, setHeaders] = useState<HeaderPairUi[]>(defaultHeadersForCreate());
-  const [body, setBody] = useState<string>(bodyDefaultFor(models[0]?.modelName ?? ''));
+  const [useCustomBody, setUseCustomBody] = useState<boolean>(true);
+  // 使用 {{model}} 占位符，无需根据所选模型重新生成（探测时由 probe 替换）。
+  const [body, setBody] = useState<string>(bodyDefaultFor('chat'));
 
   return (
     <form
@@ -1013,20 +1129,33 @@ function CreateConfigForm({
           className="mono"
         />
       </Field>
-      <Field label="请求头" hint="支持 {{API_KEY}} {{model}} {{timestamp}} 模板">
+      <ToggleField
+        label="请求头"
+        hint="支持 {{API_KEY}} {{model}} {{timestamp}} 模板"
+        enabled={useCustomHeaders}
+        onToggle={setUseCustomHeaders}
+        offText="关闭——探测时不会发送任何自定义请求头。"
+      >
         <HeadersEditor value={headers} onChange={setHeaders} />
-      </Field>
+      </ToggleField>
       {method !== 'GET' && method !== 'HEAD' && (
-        <Field label="请求体" hint="JSON 或原文本">
+        <ToggleField
+          label="请求体"
+          hint="JSON 或原文本；支持 {{API_KEY}} {{model}} {{timestamp}} 模板"
+          enabled={useCustomBody}
+          onToggle={setUseCustomBody}
+          offText="关闭——探测时不发送请求体。"
+        >
+          <BodyTemplatePicker onPick={(t) => setBody(bodyDefaultFor(t))} />
           <textarea
             className="textarea mono"
             name="request_body"
             rows={6}
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            placeholder='{"model": "...", "messages": [...]}'
+            placeholder='{"model": "{{model}}", "messages": [...]}'
           />
-        </Field>
+        </ToggleField>
       )}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <Field
@@ -1042,13 +1171,16 @@ function CreateConfigForm({
             className="tabular"
           />
         </Field>
-        <Field label="超时（毫秒）" hint={`1000-120000，默认 ${probeDefaults.timeoutMs}`}>
+        <Field
+          label="超时（毫秒）"
+          hint={`1000-600000，默认 ${probeDefaults.timeoutMs}（最长 10 分钟，适合图片等慢端点）`}
+        >
           <TextInput
             name="timeout_ms"
             type="number"
             defaultValue={probeDefaults.timeoutMs}
             min={1000}
-            max={120000}
+            max={600000}
             className="tabular"
           />
         </Field>

@@ -7,6 +7,22 @@
 
 ## [Unreleased]
 
+## [v1.0.1] - 2026-05-23
+
+### Added
+
+- **探测组件 / 请求体模板选择器**：编辑器上方一键填入 `Chat 对话` / `图片生成` / `Embeddings` 三种 JSON 骨架，覆盖最常见的 OpenAI 兼容端点形态。
+- **请求头 / 请求体启用开关**：分别可关闭；关闭时该字段不进入 FormData，服务端按 `null` 落库，探测时完全不发送（适配 `GET /models` 等无需自定义头/体的端点）。
+
+### Changed
+
+- **默认请求体改用 `{{model}}` 占位符**：运行时由 probe 替换为该组件绑定的真实模型名，编辑器中不再硬编码模型字面量。
+- **探测超时上限放宽至 600000 ms（10 分钟）**：服务端 `clamp` 与表单 `max` 同步调整，适配图片生成、长上下文推理等慢端点；之前是 120000 ms。
+
+### Fixed
+
+- **新建探测组件时请求体永远显示第一个模型名的 bug** —— `body` 的 `useState` 初始化时绑定了 `models[0]`，切换模型下拉框不会更新（`apps/web/components/admin/configs-table.tsx`）。改用 `{{model}}` 模板后从根上消除该问题。
+
 ## [v1.0.0] - 2026-05-19
 
 Initial public release of Fast AI Uptime — 面向 AI Provider 的主动探测状态页。
@@ -45,5 +61,6 @@ Initial public release of Fast AI Uptime — 面向 AI Provider 的主动探测�
 - 安全响应头：CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy
 - docker-compose 必填 secret 校验，runtime 非 root 用户
 
-[Unreleased]: https://github.com/L1ulee/fast-ai-uptime/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/L1ulee/fast-ai-uptime/compare/v1.0.1...HEAD
+[v1.0.1]: https://github.com/L1ulee/fast-ai-uptime/compare/v1.0.0...v1.0.1
 [v1.0.0]: https://github.com/L1ulee/fast-ai-uptime/releases/tag/v1.0.0

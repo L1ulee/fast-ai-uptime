@@ -1,6 +1,6 @@
 {
   "name": "fast-ai-uptime",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "AI 服务可用性状态页 — 实时探测、事件管理、维护通告",
   "license": "MIT",

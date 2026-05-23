@@ -138,7 +138,7 @@ async function createConfig(formData: FormData) {
       enabled: true,
       isMaintenance: false,
       pollIntervalSeconds: clamp(pollIntervalSeconds, 15, 31536000, adminProbe.intervalSec),
-      timeoutMs: clamp(timeoutMs, 1000, 120000, adminProbe.timeoutMs),
+      timeoutMs: clamp(timeoutMs, 1000, 600000, adminProbe.timeoutMs),
       sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
     })
     .returning({ id: configsTable.id });
@@ -198,7 +198,7 @@ async function editConfig(formData: FormData) {
     headers,
     requestBody,
     pollIntervalSeconds: clamp(pollIntervalSeconds, 15, 31536000, 60),
-    timeoutMs: clamp(timeoutMs, 1000, 120000, 30000),
+    timeoutMs: clamp(timeoutMs, 1000, 600000, 30000),
     sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
     updatedAt: new Date(),
   };
